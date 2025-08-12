@@ -64,3 +64,65 @@ EXECUTE FUNCTION fn_validar_relatorio_duplicado();
 --Condição: Executa para todos os novos relatórios e atualizações
 
 
+
+
+
+
+-- 3 . Trigger  para Notificação de Recompensas Pagas
+
+
+CREATE OR REPLACE FUNCTION fn_notificar_marco_reputacao()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_marco INTEGER;
+    v_email_pesquisador VARCHAR(100);
+BEGIN
+    -- Verifica se a reputação atingiu algum marco (1000, 2500, 5000 pontos)
+    SELECT 
+        CASE 
+            WHEN NEW.reputacao_pontos >= 5000 THEN 5000
+            WHEN NEW.reputacao_pontos >= 2500 THEN 2500
+            WHEN NEW.reputacao_pontos >= 1000 THEN 1000
+            ELSE NULL
+        END INTO v_marco
+    WHERE NEW.reputacao_pontos >= 1000
+    AND (OLD.reputacao_pontos < 1000 
+         OR (NEW.reputacao_pontos >= 2500 AND OLD.reputacao_pontos < 2500)
+         OR (NEW.reputacao_pontos >= 5000 AND OLD.reputacao_pontos < 5000));
+    
+    -- Se atingiu um marco, "envia" notificação (simulado com RAISE NOTICE)
+    IF v_marco IS NOT NULL THEN
+        SELECT email INTO v_email_pesquisador FROM pesquisador WHERE id = NEW.id;
+        
+        RAISE NOTICE 'NOTIFICAÇÃO: Pesquisador % atingiu % pontos de reputação. Email enviado para: %', 
+            NEW.nome, v_marco, v_email_pesquisador;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER trg_verificar_marco_reputacao
+AFTER UPDATE OF reputacao_pontos ON pesquisador
+FOR EACH ROW
+WHEN (NEW.reputacao_pontos >= 1000 AND NEW.reputacao_pontos > OLD.reputacao_pontos)
+EXECUTE FUNCTION fn_notificar_marco_reputacao();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
