@@ -314,6 +314,27 @@ $$ LANGUAGE plpgsql;
 
 --Uso: SELECT calcular_recompensa_media_por_tipo('SQL Injection');
 --Justificativa: Calcula o valor médio pago por tipo de vulnerabilidade, 
---essencial para pesquisadores entenderem o mercado e empresas ajustarem suas tabelas de recompensas.
+
+
+-- 2. Função para Contar Relatórios por Pesquisador
+
+CREATE OR REPLACE FUNCTION contar_relatorios_pesquisador(p_pesquisador_id INTEGER)
+RETURNS INTEGER AS $$
+DECLARE
+    v_total INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO v_total
+    FROM relatorio
+    WHERE id_pesquisador = p_pesquisador_id;
+    
+    RETURN v_total;
+END;
+$$ LANGUAGE plpgsql;
+
+
+--Uso: SELECT contar_relatorios_pesquisador(456);
+--Finalidade: Conta quantos relatórios um pesquisador submeteu.
+
+
 
 
