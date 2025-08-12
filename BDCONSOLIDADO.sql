@@ -262,5 +262,29 @@ CREATE INDEX idx_vulnerabilidade_tipo ON vulnerabilidade(tipo);
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------
 
+Funções
+
+-- 1. Função com Operador de Agregação (COUNT)
+
+CREATE OR REPLACE FUNCTION contar_vulnerabilidades_validas(p_pesquisador_id INTEGER)
+RETURNS INTEGER AS $$
+DECLARE
+    v_total INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO v_total
+    FROM relatorio
+    WHERE id_pesquisador = p_pesquisador_id
+    AND status = 'valido';
+    
+    RETURN v_total;
+END;
+$$ LANGUAGE plpgsql;
+
+--Uso: SELECT contar_vulnerabilidades_validas(123);
+--Justificativa: Permite verificar quantas vulnerabilidades
+--válidas um pesquisador reportou, útil para calcular reputação ou bonificações
+
+
+
 
 
