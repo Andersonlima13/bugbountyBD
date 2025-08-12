@@ -286,5 +286,34 @@ $$ LANGUAGE plpgsql;
 
 
 
+-- 2. Função com Tratamento de Exceção
+
+CREATE OR REPLACE FUNCTION calcular_recompensa_media_por_tipo(p_tipo_vulnerabilidade VARCHAR(50))
+RETURNS NUMERIC(10,2) AS $$
+DECLARE
+    v_media NUMERIC(10,2);
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM vulnerabilidade WHERE tipo = p_tipo_vulnerabilidade) THEN
+        RAISE EXCEPTION 'Tipo de vulnerabilidade não encontrado: %', p_tipo_vulnerabilidade;
+    END IF;
+    
+    SELECT AVG(rec.valor) INTO v_media
+    FROM recompensa rec
+    JOIN relatorio r ON rec.id_relatorio = r.id
+    JOIN vulnerabilidade v ON r.id_vulnerabilidade = v.id
+    WHERE v.tipo = p_tipo_vulnerabilidade
+    AND rec.status_pagamento = 'pago';
+    
+    RETURN COALESCE(v_media, 0);
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Erro ao calcular média para %: %', p_tipo_vulnerabilidade, SQLERRM;
+        RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+--Uso: SELECT calcular_recompensa_media_por_tipo('SQL Injection');
+--Justificativa: Calcula o valor médio pago por tipo de vulnerabilidade, 
+--essencial para pesquisadores entenderem o mercado e empresas ajustarem suas tabelas de recompensas.
 
 
