@@ -78,6 +78,7 @@ CREATE TABLE recompensa (
 -- Inserindo empresas
 INSERT INTO empresa (nome) VALUES 
 ('TechSecure Inc.'),
+
 ('DataProtect Ltda.'),
 ('CloudSafe Solutions');
 
@@ -123,7 +124,7 @@ INSERT INTO recompensa (id_relatorio, id_pesquisador, id_programa, valor, status
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------
 
-
+-- 1 view , permite insercao de uma vulnerabilidade
 -- Criação da view otimizada para inserção
 -- Função corrigida para inserção simplificada
 CREATE OR REPLACE VIEW vw_inserir_relatorio AS
@@ -378,7 +379,7 @@ CALL aprovar_relatorio_basico(457);
 -- Esta procedure realiza uma operação fundamental no sistema de Bug Bounty: 
 --aprova um relatório de vulnerabilidade e associa uma recompensa padrão. 
 --Muda o status do relatório para 'valido' (indicando que a vulnerabilidade foi confirmada)
-
+-- alterar : valor nao deve ser padrao , e sim um valor associado a vulnerabilidade a qual o relatorio foi vinculada 
 
 
 
@@ -410,42 +411,47 @@ EXECUTE FUNCTION fn_atualizar_reputacao();
 --Atualiza automaticamente a pontuação de reputação do pesquisador quando uma recompensa é marcada como "paga"
 --Calcula pontos baseados no valor da recompensa (1 ponto para cada $100)
 
--- 2. Trigger para Validação de Relatórios Duplicados
+-- 2.  Função e Trigger para Notificação de Alteração de Escopo
 
 
-CREATE OR REPLACE FUNCTION fn_validar_relatorio_duplicado()
+-- Função para gerar a notificação de alteração de escopo
+CREATE OR REPLACE FUNCTION fn_notificar_alteracao_escopo()
 RETURNS TRIGGER AS $$
 DECLARE
-    v_relatorio_similar INTEGER;
+    v_nome_empresa VARCHAR(100);
 BEGIN
-    -- Verifica se já existe um relatório similar (mesmo programa e mesma vulnerabilidade)
-    SELECT id INTO v_relatorio_similar
-    FROM relatorio
-    WHERE id_programa = NEW.id_programa
-    AND id_vulnerabilidade = NEW.id_vulnerabilidade
-    AND descricao ILIKE '%' || substring(NEW.descricao from 1 for 20) || '%'
-    AND id != COALESCE(NEW.id, -1)  -- Ignora o próprio registro em caso de update
-    LIMIT 1;
+    -- Obtém o nome da empresa dona do programa
+    SELECT e.nome INTO v_nome_empresa
+    FROM empresa e
+    WHERE e.id = NEW.id_empresa;
     
-    IF v_relatorio_similar IS NOT NULL THEN
-        RAISE EXCEPTION 'Relatório duplicado/similar encontrado (ID: %). Verifique o relatório existente antes de submeter.', 
-            v_relatorio_similar;
-    END IF;
+    -- Exibe a mensagem com as informações da alteração
+    RAISE NOTICE 'O escopo do programa % da empresa % foi alterado de "%" para "%"',
+        NEW.id,
+        v_nome_empresa,
+        OLD.escopo,
+        NEW.escopo;
     
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_validar_relatorio_duplicado
-BEFORE INSERT OR UPDATE ON relatorio
+-- Trigger que executa após atualização na tabela programa
+CREATE TRIGGER trg_notificar_alteracao_escopo
+AFTER UPDATE OF escopo ON programa
 FOR EACH ROW
-EXECUTE FUNCTION fn_validar_relatorio_duplicado();
+WHEN (OLD.escopo IS DISTINCT FROM NEW.escopo)
+EXECUTE FUNCTION fn_notificar_alteracao_escopo();
 
---Previne submissão de relatórios duplicados ou muito similares
 
---Compara programa, tipo de vulnerabilidade e parte inicial da descrição
---Evento: BEFORE INSERT OR UPDATE na tabela relatorio
---Condição: Executa para todos os novos relatórios e atualizações
+- Atualização que disparará o trigger
+UPDATE programa 
+SET escopo = 'Novo escopo incluindo APIs REST' 
+WHERE id = 1;
+
+-- Saída esperada:
+-- NOTICE:  O escopo do programa 1 da empresa TechSecure Inc. foi alterado de "Aplicativo mobile Android/iOS, API pública" para "Novo escopo incluindo APIs REST"
+
 
 
 
